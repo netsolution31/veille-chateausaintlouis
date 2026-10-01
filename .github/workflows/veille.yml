@@ -1,0 +1,49 @@
+name: Veille externe
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # contrôle toutes les 5 minutes (GitHub peut retarder de quelques minutes)
+    - cron: '0 6 * * 1'     # bilan du lundi, 8 h en été / 7 h en hiver (heure de Paris)
+  workflow_dispatch:
+    inputs:
+      bilan:
+        description: 'Envoyer aussi le bilan (test des e-mails)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # le commit hebdomadaire qui garde la planification active
+  issues: write     # un ticket ouvert = une panne en cours
+
+concurrency:
+  group: veille
+  cancel-in-progress: false
+
+jobs:
+  controle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save --no-audit --no-fund nodemailer@6
+      - name: Contrôles
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ALERTE_A: fcastellani31@gmail.com
+          BILAN: ${{ (github.event.schedule == '0 6 * * 1' || inputs.bilan) && '1' || '0' }}
+        run: node veille.mjs
+      # GitHub désactive les planifications d'un dépôt public sans activité
+      # depuis 60 jours : un commit par semaine, au bilan du lundi.
+      - name: Signe de vie hebdomadaire
+        if: github.event.schedule == '0 6 * * 1'
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > dernier-bilan.txt
+          git config user.name "veille-externe"
+          git config user.email "veille-externe@users.noreply.github.com"
+          git add dernier-bilan.txt
+          git commit -m "Signe de vie de la veille externe" && git push
