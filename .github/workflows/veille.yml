@@ -34,6 +34,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          SITE_SMTP_HOST: ${{ secrets.SITE_SMTP_HOST }}
+          SITE_SMTP_PORT: ${{ secrets.SITE_SMTP_PORT }}
+          SITE_SMTP_USER: ${{ secrets.SITE_SMTP_USER }}
+          SITE_SMTP_PASS: ${{ secrets.SITE_SMTP_PASS }}
           ALERTE_A: fcastellani31@gmail.com
           BILAN: ${{ (github.event.schedule == '0 6 * * 1' || inputs.bilan) && '1' || '0' }}
         run: node veille.mjs
