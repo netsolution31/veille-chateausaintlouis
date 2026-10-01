@@ -1,0 +1,53 @@
+name: Parcours d'achat
+
+on:
+  schedule:
+    - cron: '20 5 * * *'   # chaque matin (7 h 20 en été, 6 h 20 en hiver) : parcours jusqu'au bouton « Commander »
+    - cron: '40 5 * * 1'   # chaque lundi : vraie commande par virement, puis annulation
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'parcours (sans commander) ou commande (vraie commande, annulée ensuite)'
+        type: choice
+        options: [parcours, commande]
+        default: parcours
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: e2e
+  cancel-in-progress: false
+
+jobs:
+  parcours:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm install --no-save --no-audit --no-fund nodemailer@6 playwright@1.63.0
+      - run: npx playwright install --with-deps chromium
+      - name: Parcours
+        env:
+          E2E_MODE: ${{ github.event.schedule == '40 5 * * 1' && 'commande' || inputs.mode || 'parcours' }}
+          ROBOT_SECRET: ${{ secrets.ROBOT_SECRET }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          SITE_SMTP_HOST: ${{ secrets.SITE_SMTP_HOST }}
+          SITE_SMTP_PORT: ${{ secrets.SITE_SMTP_PORT }}
+          SITE_SMTP_USER: ${{ secrets.SITE_SMTP_USER }}
+          SITE_SMTP_PASS: ${{ secrets.SITE_SMTP_PASS }}
+          ALERTE_A: fcastellani31@gmail.com
+        run: node e2e.mjs
+      - name: Captures d'écran de l'échec
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: captures
+          path: captures/
+          retention-days: 14
