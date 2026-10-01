@@ -76,8 +76,14 @@ async function parcourir(essai) {
     await p.waitForTimeout(3500);
 
     etape = 'livraison en point relais';
+    // Les options de livraison se recalculent après la saisie de l'adresse :
+    // jusqu'à 30 s sur les serveurs de GitHub (faux échec du 1er octobre).
     const relaisRadio = p.locator('input[value^="mondial_relay_point_relais"]');
-    if (!(await relaisRadio.count())) throw new Error('Mondial Relay point relais n\'est pas proposé');
+    try {
+      await relaisRadio.first().waitFor({ state: 'attached', timeout: 30000 });
+    } catch {
+      throw new Error('Mondial Relay point relais n\'est pas proposé (30 s d\'attente)');
+    }
     await relaisRadio.first().check();
     await p.waitForTimeout(3000);
     await p.click('.wms_pickup_selection_button');
